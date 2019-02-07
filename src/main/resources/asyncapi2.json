@@ -1,0 +1,44 @@
+{
+  "title": "AsyncAPI 1.2.0 schema.",
+  "id": "file:src/main/resources/asyncapi2.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "required": [
+    "asyncapi",
+    "info"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "topics"
+      ]
+    },
+    {
+      "required": [
+        "stream"
+      ]
+    },
+    {
+      "required": [
+        "events"
+      ]
+    }
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {
+      "$ref": "#/definitions/vendorExtension"
+    }
+  },
+  "properties": {
+    "asyncapi": {
+      "type": "string",
+      "enum": [
+        "1.0.0",
+        "1.1.0",
+        "1.2.0"
+      ],
+      "description": "The AsyncAPI specification version of this document."
+    }
+  }
+}
