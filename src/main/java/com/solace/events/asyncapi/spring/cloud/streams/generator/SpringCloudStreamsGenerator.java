@@ -106,19 +106,23 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 			return;
 		}
 
-		// Take Contract and parse into AsyncApi Java Object Model for
-		// processing
+		// Take AsyncAPI Contract and parse into a signature object 
 		YamlParser yamlParser = new YamlParser(new FileInputStream(new File(scsGenProps.getAsyncAPIfile())));
 		this.asyncApiData = yamlParser.parse();
 		this.signature = extractSignature(asyncApiData);
 
+		// Generate Spring Project though Spring Initializer based on properties 
 		ProjectRequest projectRequest = scsProjectRequest.getProjectRequest();
-
 		File out = generateInitilizrProject(projectRequest);
+		
+		//Generate Java Objects based off of publish/subscribe models defined in the Contract
+		generateObjectModel(out);
 
+		// Generate Spring Cloud Streams Java Object with Annotations and Methods
 		String source = generateSourceCode(out, projectRequest);
 		System.out.println(source);
 
+		// Generate Application.Yaml file which links the SCS Bindings to the Solace Binder 
 		String yamlConfig = generateApplicationYaml(out, projectRequest);
 		System.out.println(yamlConfig);
 	}
@@ -127,6 +131,15 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 		FileOutputStream output = new FileOutputStream(theFile, false);
 		output.write(text.getBytes());
 		output.close();
+	}
+	
+	private void generateObjectModel(File out) throws IOException
+	{
+		final Builder builder = Generator.newBuilder();
+		builder.targetPath(Paths.get(out.toString() + File.separator + scsGenProps.getBaseDir() + "/src/main/java"));
+		builder.basePackage(scsGenProps.getPackageName());
+		builder.build(asyncApiData).generate();
+
 	}
 
 	private File generateInitilizrProject(ProjectRequest projectRequest) throws IOException {
@@ -151,11 +164,7 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 		projectGenerator.setEventPublisher(this);
 		File out = projectGenerator.generateProjectStructure(projectRequest);
 		System.out.println(out);
-		final Builder builder = Generator.newBuilder();
-		builder.targetPath(Paths.get(out.toString() + File.separator + scsGenProps.getBaseDir() + "/src/main/java"));
-		builder.basePackage(scsGenProps.getPackageName());
-		builder.build(asyncApiData).generate();
-
+		
 		return out;
 	}
 
