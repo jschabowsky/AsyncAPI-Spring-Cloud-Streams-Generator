@@ -1,0 +1,318 @@
+---
+components:
+  schemas:
+    FlightPlan:
+      description: "This event represents a flight plan to be filed with an ANSP"
+      type: "object"
+      title: "The Root Schema"
+      properties:
+        wakeTurbulenceCategory:
+          default: ""
+          examples:
+          - "H"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Waketurbulencecategory Schema"
+        routeDefinition:
+          type: "object"
+          title: "The Routedefinition Schema"
+          properties:
+            initialLevel:
+              default: ""
+              examples:
+              - "String"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Initiallevel Schema"
+            routeDescription:
+              type: "object"
+              title: "The Routedescription Schema"
+              properties:
+                point:
+                  type: "object"
+                  title: "The Point Schema"
+                  properties:
+                    refPoint:
+                      type: "object"
+                      title: "The Refpoint Schema"
+                      properties:
+                        reference:
+                          default: ""
+                          examples:
+                          - "00"
+                          pattern: "^(.*)$"
+                          type: "string"
+                          title: "The Reference Schema"
+                        distance:
+                          default: ""
+                          examples:
+                          - "0"
+                          pattern: "^(.*)$"
+                          type: "string"
+                          title: "The Distance Schema"
+                        bearing:
+                          default: ""
+                          examples:
+                          - "0"
+                          pattern: "^(.*)$"
+                          type: "string"
+                          title: "The Bearing Schema"
+            initialSpeed:
+              default: ""
+              examples:
+              - "0"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Initialspeed Schema"
+        flightKey:
+          type: "object"
+          title: "The Flightkey Schema"
+          properties:
+            pod:
+              type: "object"
+              title: "The Pod Schema"
+              required:
+              - "iata"
+              properties:
+                iata:
+                  default: ""
+                  examples:
+                  - "SLC"
+                  pattern: "^(.*)$"
+                  type: "string"
+                  title: "The Iata Schema"
+            flightIdentifier:
+              type: "object"
+              title: "The Flightidentifier Schema"
+              properties:
+                flightOriginDate:
+                  default: ""
+                  examples:
+                  - "2019-05-28"
+                  pattern: "^(.*)$"
+                  type: "string"
+                  title: "The Flightorigindate Schema"
+                airlineCode:
+                  type: "object"
+                  title: "The Airlinecode Schema"
+                  properties:
+                    iata:
+                      default: ""
+                      examples:
+                      - "FX"
+                      pattern: "^(.*)$"
+                      type: "string"
+                      title: "The Iata Schema"
+                flightNumber:
+                  default: ""
+                  examples:
+                  - "FX876"
+                  pattern: "^(.*)$"
+                  type: "string"
+                  title: "The Flightnumber Schema"
+        aircraftIdentifier:
+          type: "object"
+          title: "The Aircraftidentifier Schema"
+          properties:
+            registrationMark:
+              default: ""
+              examples:
+              - "FE"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Registrationmark Schema"
+            aircraftIdCode:
+              default: ""
+              examples:
+              - "N624FE"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Aircraftidcode Schema"
+        totalEstimatedElapsedTime:
+          default: ""
+          examples:
+          - "120"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Totalestimatedelapsedtime Schema"
+        eetsToLocations:
+          default: ""
+          examples:
+          - "a"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Eetstolocations Schema"
+        messageType:
+          default: ""
+          examples:
+          - "CNL"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Messagetype Schema"
+        etd:
+          default: ""
+          examples:
+          - "2019-05-28T09:30:47Z"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Etd Schema"
+        aerodromeOfDestination:
+          type: "object"
+          title: "The Aerodromeofdestination Schema"
+          properties:
+            icaoId:
+              default: ""
+              examples:
+              - "KMEM"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Icaoid Schema"
+        flightCategory:
+          default: ""
+          examples:
+          - "S"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Flightcategory Schema"
+        aircraftEquipmentCode:
+          type: "object"
+          title: "The Aircraftequipmentcode Schema"
+          properties:
+            icaoId:
+              default: ""
+              examples:
+              - "MD11"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Icaoid Schema"
+        estimatedOffBlockTime:
+          default: ""
+          examples:
+          - "2001-12-17T09:30:47Z"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Estimatedoffblocktime Schema"
+        flightRules:
+          default: ""
+          examples:
+          - "I"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Flightrules Schema"
+        aerodromeOfDeparture:
+          type: "object"
+          title: "The Aerodromeofdeparture Schema"
+          properties:
+            icaoId:
+              default: ""
+              examples:
+              - "KSLC"
+              pattern: "^(.*)$"
+              type: "string"
+              title: "The Icaoid Schema"
+    ExpressAircraftLoad:
+      description: "Fedex express packages grouped into a flight which must be flown\
+        \ by express"
+      type: "object"
+      title: "The Root Schema"
+      definitions: {}
+      properties:
+        truckID:
+          default: ""
+          examples:
+          - "jbfejbf"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Truckid Schema"
+        destination:
+          default: ""
+          examples:
+          - "san diego"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Destination Schema"
+        departure:
+          default: ""
+          examples:
+          - "ottawa"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Departure Schema"
+        packages:
+          type: "array"
+          title: "The Packages Schema"
+          items:
+            type: "object"
+            title: "The Items Schema"
+            properties:
+              weight:
+                default: 0
+                examples:
+                - 10
+                type: "integer"
+                title: "The Weight Schema"
+              trackingNumber:
+                default: ""
+                examples:
+                - "ABCDEFG"
+                pattern: "^(.*)$"
+                type: "string"
+                title: "The Trackingnumber Schema"
+              dimensions:
+                type: "object"
+                title: "The Dimensions Schema"
+                properties:
+                  width:
+                    default: 0
+                    examples:
+                    - 5
+                    type: "integer"
+                    title: "The Width Schema"
+                  height:
+                    default: 0
+                    examples:
+                    - 10
+                    type: "integer"
+                    title: "The Height Schema"
+  messages:
+    ExpressLoadCreated:
+      headers: {}
+      payload:
+        $ref: "#/components/schemas/ExpressAircraftLoad"
+      name: "AcmeLogistics_ExpressLoadCreated"
+      description: "Represents a set of packages to be flown by a fedex aircraft"
+      title: "Acme-Logistics.ExpressLoadCreated"
+    FlightPlanFiled:
+      headers: {}
+      payload:
+        $ref: "#/components/schemas/FlightPlan"
+      name: "FlightPlanFiled"
+      description: "FlightPlan successfully filed with ANSP"
+      title: "FlightPlanFiled"
+channels:
+  fedex/logistics/expressload/created/orgin/destination/daterequired:
+    subscribe:
+      message:
+        $ref: "#/components/messages/ExpressLoadCreated"
+  fedex/exp/aviation/ops/flightplan/filed/id:
+    publish:
+      message:
+        $ref: "#/components/messages/FlightPlanFiled"
+asyncapi: "2.0.0-rc1"
+id: "urn:qho6wzcekz"
+info:
+  description: "consumes loads, maps to physical aircraft and files flight plans with\
+    \ ANSP"
+  title: "AircraftAssetScheduler"
+  version: "1"
+servers:
+  url: vmr-mr8v6yiwieih.messaging.solace.cloud:20160
+  protocol: smf
+  description: Test broker
+  baseChannel: 
+  variables:
+    port:
+      description: Secure connection (TLS) is available through port 8883.
+      default: '20160'
+      enum:
+        - '20160'

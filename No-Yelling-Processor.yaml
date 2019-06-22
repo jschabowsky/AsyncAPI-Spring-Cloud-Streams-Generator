@@ -1,0 +1,95 @@
+---
+components:
+  schemas:
+    Tweet:
+      type: "object"
+      properties:
+        hashtags:
+          type: "array"
+          title: "The Hashtags Schema"
+          items:
+            default: ""
+            examples:
+            - "#E6000"
+            pattern: "^(.*)$"
+            type: "string"
+            title: "The Items Schema"
+        text:
+          default: ""
+          examples:
+          - "I.absolutely.hate.my.#E6000.car..Period.."
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Text Schema"
+        userMentions:
+          type: "array"
+          items:
+            default: ""
+            type: "string"
+          title: "The Usermentions Schema"
+        uuid:
+          default: ""
+          examples:
+          - "c963c37e-9ac2-44ec-9428-8f6481c941b7"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Uuid Schema"
+        timestamp:
+          default: ""
+          examples:
+          - "2019-05-14T14:21:01.909+0000"
+          pattern: "^(.*)$"
+          format: "date-time"
+          type: "string"
+          title: "The Timestamp Schema"
+        username:
+          default: ""
+          examples:
+          - "HipHeinz"
+          pattern: "^(.*)$"
+          type: "string"
+          title: "The Username Schema"
+  messages:
+    NoYelling:
+      headers: {}
+      payload:
+        $ref: "#/components/schemas/Tweet"
+      name: "NoYelling"
+      description: "People seem to be yelling about our cars... maybe we should make\
+        \ things more civil"
+      title: "No-Yelling"
+    NoNewFeatureIdea:
+      headers: {}
+      payload:
+        $ref: "#/components/schemas/Tweet"
+      name: "NoNewFeatureIdea"
+      description: "This event represent a tweet that contains no new ideas that my\
+        \ boss could steal. "
+      title: "No-New-Feature-Idea"
+channels:
+  tweets/stream/nofeatures:
+    subscribe:
+      message:
+        $ref: "#/components/messages/NoNewFeatureIdea"
+  tweets/stream/nofeatures/noyelling:
+    publish:
+      message:
+        $ref: "#/components/messages/NoYelling"
+asyncapi: "2.0.0-rc1"
+id: "urn:com:smartylighting:streetlights:server"
+info:
+  description: "Converts \"yelling\" aka upper case messages to lowercase"
+  title: "NoYellingProcessor"
+  version: "1"
+servers:
+  url: vmr-mr8v6yiwieih.messaging.solace.cloud:20160
+  protocol: smf
+  description: Test broker
+  baseChannel: 
+  variables:
+    port:
+      description: Secure connection (TLS) is available through port 8883.
+      default: '20160'
+      enum:
+        - '20160'
+  
