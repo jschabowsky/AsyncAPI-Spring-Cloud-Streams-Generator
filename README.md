@@ -9,22 +9,18 @@ In order to generate the SCS Application, the associated java class must have th
 The Application.yaml file purpose is to map the INPUTS/OUTPUTS to the underling binding implementation. In this case, this generator works with Solace's but could easily be extended to support others. 
 
 How to run it: 
-1) update the application.propertes (Since its in src/main/resources, it expects it to be in the jar) An example is shown below: 
-scs.scsType=PROCESSOR 
-scs.packageName=com.solace.test.processor
-scs.baseDir=SCSProcessorproject
-scs.asyncAPIfile=asyncapi-basic-example-processor.yml
-spring.initializr.name=DemoScsProcessor
-spring.initializr.artifactId=DemoScsProcessor
-spring.initializr.groupId=com.solace.test.processor
-spring.initializr.version=0.0.1
-spring.initializr.description=thisIsADescription
-spring.initializr.packageName=com.solace.test.processor
-spring.initializr.javaVersion=1.8
-spring.initializr.language=java
-spring.initializr.baseDir=SCSProcessorproject
-spring.initializr.bootVersion=2.0.3.RELEASE
-spring.initializr.type=maven-build
-spring.initializr.packaging=jar
-2) run the jar file 
-The output ends up in the initializr directory relative to where you run it. 
+1) mvn clean install
+2) generated jar file is runnable like so:
+java -jar AsyncAPI-SpringCloudStreams-Generator-0.0.1-SNAPSHOT-spring-boot.jar --p="com.solace.spring.cloud.streams.test" --java --jar --mvn --sbv=2.1.4.RELEASE --jv=1.8 --cu=solace-cloud-client --cp=XXXXXXXXXXXXXXXX --mvpn=msgvpn No-Yelling-Processor.yaml
+
+Options are:
+-p source code root package
+--java means to use java
+--jar means to package as a jar
+--mvn means to make it a maven build
+--sbv is the spring boot version to use 
+--jv is the java version to use 
+--cu is the solace client username
+--cp is the solace client password
+--mvpn is the solace message vpn to connect to 
+the last argument is the AsyncAPI file (2.0.0-rc1) to generate into code. 
