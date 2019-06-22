@@ -9,45 +9,32 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "scs")
 public class SpringCloudStreamsGeneratorProperties {
-	static final String SINK = "SINK";
-	static final String SOURCE = "SOURCE";
-	static final String PROCESSOR = "PROCESSOR";
+		
+	@NotBlank
+	private String clientUsername="default";
 	
 	@NotBlank
-	private String packageName;
+	private String clientPassword="default";
 	
 	@NotBlank
-	private String baseDir;
+	private String msgVpn="default";
 	
-	@NotBlank
-	private String scsType;
-	
-	@NotBlank
-	private String asyncAPIfile;
-	
-	public String getAsyncAPIfile() {
-		return asyncAPIfile;
+	public String getMsgVpn() {
+		return msgVpn;
 	}
-	public void setAsyncAPIfile(String asyncAPIfile) {
-		this.asyncAPIfile = asyncAPIfile;
+	public void setMsgVpn(String msgVpn) {
+		this.msgVpn = msgVpn;
 	}
-	public String getScsType() {
-		return scsType;
+	public String getClientUsername() {
+		return clientUsername;
 	}
-	public void setScsType(String scsType) {
-		this.scsType = scsType;
+	public void setClientUsername(String clientUsername) {
+		this.clientUsername = clientUsername;
 	}
-	public String getPackageName() {
-		return packageName;
+	public String getClientPassword() {
+		return clientPassword;
 	}
-	public void setPackageName(String packageName) {
-		this.packageName = packageName;
-	}
-	public String getBaseDir() {
-		return baseDir;
-	}
-	public void setBaseDir(String baseDir) {
-		this.baseDir = baseDir;
-	}
-
+	public void setClientPassword(String clientPassword) {
+		this.clientPassword = clientPassword;
+	}	
 }

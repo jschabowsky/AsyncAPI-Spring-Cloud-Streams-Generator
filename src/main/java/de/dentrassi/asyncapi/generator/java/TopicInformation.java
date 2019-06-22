@@ -76,7 +76,7 @@ public class TopicInformation {
 
         // split
 
-        final LinkedList<String> toks = new LinkedList<>(Arrays.asList(topic.split("\\.")));
+        final LinkedList<String> toks = new LinkedList<>(Arrays.asList(topic.split("/")));
 
         // assign service
 
@@ -121,18 +121,18 @@ public class TopicInformation {
             throw new IllegalArgumentException("Wrong topic syntax");
         }
         if (version.isEmpty()) {
-            throw new IllegalArgumentException("Wrong topic syntax");
+           // new IllegalArgumentException("Wrong topic syntax");
         }
         if (type == null || type.isEmpty()) {
             throw new IllegalArgumentException("Wrong topic syntax");
         }
         if (resources.isEmpty()) {
-            throw new IllegalArgumentException("Wrong topic syntax");
+           // throw new IllegalArgumentException("Wrong topic syntax");
         }
 
         // return result
 
-        return new TopicInformation(service, String.join(".", version), type, resources, action, status);
+        return new TopicInformation(service, String.join("/", version), type, resources, action, status);
     }
 
     private static boolean isVersionSegment(final String string) {

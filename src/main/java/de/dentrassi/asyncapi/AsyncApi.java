@@ -21,90 +21,37 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.asyncapi.parser.Channel;
+import com.asyncapi.parser.Channels;
+import com.asyncapi.parser.Info;
+import com.asyncapi.parser.Server;
+
 import de.dentrassi.asyncapi.internal.parser.ParserException;
 import de.dentrassi.asyncapi.internal.parser.YamlParser;
-import de.dentrassi.asyncapi.meta.Information;
 import de.dentrassi.asyncapi.type.Type;
 import de.dentrassi.asyncapi.validate.ValidationException;
 import de.dentrassi.asyncapi.validate.Validator;
 
 public class AsyncApi {
 
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "2.0.0-rc1";
 
-    private Information information;
+    private Info info;
 
-    private String baseTopic;
+    private String id; 
+    
+    private Set<Server> servers = new LinkedHashSet<>();
 
-    private Set<String> schemes = new HashSet<>();
+    private Set<Channel> channels = new LinkedHashSet<>();
 
-    private String host;
-
-    private Set<Topic> topics = new LinkedHashSet<>();
-
-    private Set<Message> messages = new LinkedHashSet<>();
+    private Set<com.asyncapi.parser.Message> messages = new LinkedHashSet<>();
 
     private Set<Type> types = new LinkedHashSet<>();
 
-    public Set<Topic> getTopics() {
-        return this.topics;
-    }
-
-    public void setTopics(final Set<Topic> topics) {
-        this.topics = topics;
-    }
-
-    public String getHost() {
-        return this.host;
-    }
-
-    public void setHost(final String host) {
-        this.host = host;
-    }
-
-    public String getBaseTopic() {
-        return this.baseTopic;
-    }
-
-    public void setBaseTopic(final String baseTopic) {
-        this.baseTopic = baseTopic;
-    }
-
-    public Set<String> getSchemes() {
-        return this.schemes;
-    }
-
-    public void setSchemes(final Set<String> schemes) {
-        this.schemes = schemes;
-    }
-
-    public Information getInformation() {
-        return this.information;
-    }
-
-    public void setInformation(final Information info) {
-        this.information = info;
-    }
-
-    public Set<Message> getMessages() {
-        return this.messages;
-    }
-
-    public void setMessages(final Set<Message> messages) {
-        this.messages = messages;
-    }
-
-    public Set<Type> getTypes() {
-        return this.types;
-    }
-
-    public void setTypes(final Set<Type> types) {
-        this.types = types;
-    }
+    
 
     /**
      * Load an AsyncAPI specification encoded in YAML
@@ -160,4 +107,56 @@ public class AsyncApi {
 
         return api;
     }
+
+	public Info getInfo() {
+		return info;
+	}
+
+	public void setInfo(Info info) {
+		this.info = info;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public Set<Server> getServers() {
+		return servers;
+	}
+
+	public void setServers(Set<Server> servers) {
+		this.servers = servers;
+	}
+
+	public Set<Channel> getChannel() {
+		return channels;
+	}
+
+	public void setChannel(Set<Channel> channel) {
+		channels = channel;
+	}
+
+	public Set<com.asyncapi.parser.Message> getMessages() {
+		return messages;
+	}
+
+	public void setMessages(Set<com.asyncapi.parser.Message> messages) {
+		this.messages = messages;
+	}
+
+	public Set<Type> getTypes() {
+		return types;
+	}
+
+	public void setTypes(Set<Type> types) {
+		this.types = types;
+	}
+
+	public static String getVersion() {
+		return VERSION;
+	}
 }

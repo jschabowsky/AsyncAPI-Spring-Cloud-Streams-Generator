@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,10 +14,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-import javax.annotation.PostConstruct;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,15 +36,12 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.asyncapi.parser.Channel;
+import com.asyncapi.parser.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.github.fge.jackson.JsonLoader;
 import com.github.fge.jsonschema.core.exceptions.ProcessingException;
-import com.github.fge.jsonschema.core.report.ProcessingReport;
-import com.github.fge.jsonschema.main.JsonSchema;
-import com.github.fge.jsonschema.main.JsonSchemaFactory;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -57,7 +55,6 @@ import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.SourceRoot;
 
 import de.dentrassi.asyncapi.AsyncApi;
-import de.dentrassi.asyncapi.Topic;
 import de.dentrassi.asyncapi.generator.java.Generator;
 import de.dentrassi.asyncapi.generator.java.Generator.Builder;
 import de.dentrassi.asyncapi.internal.parser.ParserException;
@@ -75,10 +72,8 @@ import io.spring.initializr.metadata.SimpleInitializrMetadataProvider;
 @EnableConfigurationProperties(InitializrProperties.class)
 @PropertySource("classpath:application.properties")
 // @EnableAutoConfiguration
-public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
+public class SpringCloudStreamsGenerator implements ApplicationRunner, ApplicationEventPublisher {
 
-	static final Dependency RABBIT_BINDER = Dependency.withId("cloud-stream-binder-rabbit", "org.springframework.cloud",
-			"spring-cloud-stream-binder-rabbit");
 	static final Dependency SCS_TEST = Dependency.withId("cloud-stream-test", "org.springframework.cloud",
 			"spring-cloud-stream-test-support", null, Dependency.SCOPE_TEST);
 
@@ -87,10 +82,11 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SpringCloudStreamsGenerator.class, args);
+		
 	}
 
 	@Autowired
-	private InitializrProperties properties;
+	private InitializrProperties initializrProps;
 
 	@Autowired
 	private SpringCloudStreamsGeneratorProperties scsGenProps;
@@ -98,33 +94,95 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 	@Autowired
 	private SCSProjectRequest scsProjectRequest;
 
-	@PostConstruct
-	public void generateSCS() throws Exception, IOException, ProcessingException, ParserException {
-		// Validate Contract against asyncapi schema
-		if (!this.validateContract(new File("src/main/resources/asyncapi.json"),
-				new File("src/main/resources/oneof.yml"))) {
-			return;
+	public void run(ApplicationArguments  args) throws Exception, IOException, ProcessingException, ParserException {
+		
+		if(!args.containsOption("p") || !args.containsOption("cu") || !args.containsOption("cp") || !args.containsOption("mvpn") || args.getNonOptionArgs().size()!=1)
+		{
+			System.out.println("USAGE: ");
+			System.out.println("--p=<package> --cu=<client-username> --cp=<client-password> --mvpn=<message-vpn> <asyncapi-file-path>");
+			System.exit(-1);
+		}
+		
+		if(args.containsOption("p"))
+		{
+			scsProjectRequest.setPackageName(args.getOptionValues("p").get(0));
+		}
+		if(args.containsOption("sbv"))
+		{
+			scsProjectRequest.setBootVersion(args.getOptionValues("sbv").get(0));
+		}
+		if(args.containsOption("jv"))
+		{
+			scsProjectRequest.setJavaVersion(args.getOptionValues("jv").get(0));
+		}
+		if(args.containsOption("java"))
+		{
+			scsProjectRequest.setLanguage("java");
+		}
+		if(args.containsOption("jar"))
+		{
+			scsProjectRequest.setPackaging("jar");
+		}
+		if(args.containsOption("mvn"))
+		{
+			scsProjectRequest.setType("maven-build");
+		}
+		if(args.containsOption("cu"))
+		{
+			scsGenProps.setClientUsername(args.getOptionValues("cu").get(0));;
+		}
+		if(args.containsOption("cp"))
+		{
+			scsGenProps.setClientPassword(args.getOptionValues("cp").get(0));;
+		}
+		if(args.containsOption("mvpn"))
+		{
+			scsGenProps.setMsgVpn(args.getOptionValues("mvpn").get(0));;
 		}
 
-		// Take AsyncAPI Contract and parse into a signature object 
-		YamlParser yamlParser = new YamlParser(new FileInputStream(new File(scsGenProps.getAsyncAPIfile())));
+		// Take AsyncAPI Contract and parse into a signature object
+		YamlParser yamlParser = new YamlParser(new FileInputStream(new File(args.getNonOptionArgs().get(0))));
 		this.asyncApiData = yamlParser.parse();
 		this.signature = extractSignature(asyncApiData);
 
-		// Generate Spring Project though Spring Initializer based on properties 
+		// Generate Spring Project though Spring Initializer based on properties
+		if (scsProjectRequest.getBaseDir() == null)
+		{
+			scsProjectRequest.setBaseDir(asyncApiData.getInfo().getTitle());
+		}
+		if (scsProjectRequest.getName() == null) {
+			scsProjectRequest.setName(asyncApiData.getInfo().getTitle());
+		}
+		if (scsProjectRequest.getArtifactId() == null) {
+			scsProjectRequest.setArtifactId(asyncApiData.getInfo().getTitle());
+		}
+		if (scsProjectRequest.getGroupId() == null) {
+			scsProjectRequest.setGroupId(scsProjectRequest.getPackageName());
+		}
+		if (scsProjectRequest.getVersion() == null) {
+			scsProjectRequest.setVersion(asyncApiData.getInfo().getVersion());
+		}
+		if (scsProjectRequest.getDescription() == null) {
+			scsProjectRequest.setDescription("");
+		}
 		ProjectRequest projectRequest = scsProjectRequest.getProjectRequest();
 		File out = generateInitilizrProject(projectRequest);
-		
-		//Generate Java Objects based off of publish/subscribe models defined in the Contract
+		// Generate Java Objects based off of publish/subscribe models defined
+		// in the Contract
 		generateObjectModel(out);
 
-		// Generate Spring Cloud Streams Java Object with Annotations and Methods
+		// Generate Spring Cloud Streams Java Object with Annotations and
+		// Methods
 		String source = generateSourceCode(out, projectRequest);
 		System.out.println(source);
 
-		// Generate Application.Yaml file which links the SCS Bindings to the Solace Binder 
+		// Generate Application.Yaml file which links the SCS Bindings to the
+		// Solace Binder
 		String yamlConfig = generateApplicationYaml(out, projectRequest);
 		System.out.println(yamlConfig);
+		
+		System.out.println("Your Project Has Been Generated at: " + out);
+
 	}
 
 	private void writeFile(File theFile, String text) throws Exception {
@@ -132,66 +190,78 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 		output.write(text.getBytes());
 		output.close();
 	}
-	
-	private void generateObjectModel(File out) throws IOException
-	{
+
+	private void generateObjectModel(File out) throws IOException {
 		final Builder builder = Generator.newBuilder();
-		builder.targetPath(Paths.get(out.toString() + File.separator + scsGenProps.getBaseDir() + "/src/main/java"));
-		builder.basePackage(scsGenProps.getPackageName());
+		builder.targetPath(
+				Paths.get(out.toString() + File.separator + scsProjectRequest.getBaseDir() + "/src/main/java"));
+		builder.basePackage(scsProjectRequest.getPackageName());
 		builder.build(asyncApiData).generate();
 
 	}
 
 	private File generateInitilizrProject(ProjectRequest projectRequest) throws IOException {
 		// Initial Spring Initializr Setup
-		properties = load(new ClassPathResource("spring-bom.yml"));
-		InitializrMetadata metadata = InitializrMetadataBuilder.fromInitializrProperties(properties).build();
+
+		
+		
+
+		initializrProps = load(new ClassPathResource("spring-bom.yml"));
+		InitializrMetadata metadata = InitializrMetadataBuilder.fromInitializrProperties(initializrProps).build();
 		List<String> dependencies = new ArrayList<String>();
 
 		dependencies.add("cloud-stream");
-		dependencies.add("amqp");
-		dependencies.add("rabbitmq-binder");
+		dependencies.add("web");
+		dependencies.add("cloud-stream-binder-solace");
 		projectRequest.setDependencies(dependencies);
 
-		// Below does not work...
-		// List<Dependency> resolvDeps = new ArrayList<Dependency>();
-		// projectRequest.setResolvedDependencies(resolvDeps);
-		// projectRequest.getResolvedDependencies().add(SpringCloudStreamsGenerator.RABBIT_BINDER);
-		// projectRequest.getResolvedDependencies().add(SpringCloudStreamsGenerator.SCS_TEST);
 		ProjectGenerator projectGenerator = new ProjectGenerator();
 		projectGenerator.setMetadataProvider(new SimpleInitializrMetadataProvider(metadata));
 		projectGenerator.setRequestResolver(new ProjectRequestResolver(new ArrayList<>()));
 		projectGenerator.setEventPublisher(this);
 		File out = projectGenerator.generateProjectStructure(projectRequest);
-		System.out.println(out);
 		
+
 		return out;
 	}
 
 	private String generateSourceCode(File initilizrOutputDirectory, ProjectRequest projectRequest) throws Exception {
 		// Add required source code based on contract
-		SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(SpringCloudStreamsGenerator.class)
-				.resolve(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsGenProps.getBaseDir()
-						+ "/src/main/java"));
-		CompilationUnit cu = sourceRoot.parse(projectRequest.getPackageName(), projectRequest.getName() + "Application.java");
-		cu.addImport(scsGenProps.getPackageName() + ".types.*");
-		cu.addImport(scsGenProps.getPackageName() + ".messages.*");
+    
+		Path path = Paths.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
+						+ File.separator+ "src" + File.separator + "main" + File.separator + "java");
+		SourceRoot sourceRoot = new SourceRoot(path);
+		CompilationUnit cu = sourceRoot.parse(projectRequest.getPackageName(),
+				projectRequest.getName() + "Application.java");
+		cu.addImport(scsProjectRequest.getPackageName() + ".types.*");
+		cu.addImport(scsProjectRequest.getPackageName() + ".messages.*");
 		ClassOrInterfaceDeclaration dec = cu.getClassByName(projectRequest.getApplicationName()).get();
 		MethodDeclaration method = null;
-		if (scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.PROCESSOR) == 0) {
-			method = dec.addMethod("handle", Modifier.PUBLIC);
+		if (signature.getPublishMessageType() != null && signature.getSubscribeMessageType() != null) {
+			method = dec.addMethod("handle" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
 			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
 					new ClassExpr(JavaParser.parseClassOrInterfaceType("Processor")));
 			dec.tryAddImportToParentCompilationUnit(Processor.class);
-			method.setType(signature.getPublishMessageType());
-			method.addParameter(signature.getSubscribeMessageType(),
-					"a" + signature.getSubscribeMessageType() + "Message");
+
+			for (Message m : asyncApiData.getMessages()) {
+				if (m.getName().compareTo(signature.getPublishMessageType()) == 0) {
+					method.setType(m.getPayload().getName());
+					break;
+				}
+			}
+			for (Message m : asyncApiData.getMessages()) {
+				if (m.getName().compareTo(signature.getSubscribeMessageType()) == 0) {
+					method.addParameter(m.getPayload().getName(), "a" + m.getPayload().getName());
+					break;
+				}
+			}
+
 			method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.StreamListener.class,
 					new TypeExpr(JavaParser.parseType("Processor.INPUT")));
 			method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.Output.class,
 					new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
 
-		} else if (scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.SOURCE) == 0) {
+		} else if (signature.getPublishMessageType() != null) {
 			method = dec.addMethod("send" + signature.getPublishMessageType(), Modifier.PUBLIC);
 			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
 					new ClassExpr(JavaParser.parseClassOrInterfaceType("Source")));
@@ -200,7 +270,7 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 			method.addSingleMemberAnnotation(InboundChannelAdapter.class,
 					new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
 			dec.tryAddImportToParentCompilationUnit(Processor.class);
-		} else if (scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.SINK) == 0) {
+		} else if (signature.getSubscribeMessageType() != null) {
 			method = dec.addMethod("consume" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
 			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
 					new ClassExpr(JavaParser.parseClassOrInterfaceType("Sink")));
@@ -225,45 +295,47 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 			throws Exception {
 		BindingServiceProperties bsp = new BindingServiceProperties();
 		Map<String, BindingProperties> bindingMap = new HashMap<String, BindingProperties>();
-		if (scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.PROCESSOR) == 0
-				|| scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.SINK) == 0) {
+		if (signature.getSubscribeMessageType() != null) {
 			BindingProperties bpSubscribe = new BindingProperties();
-			bpSubscribe.setBinder("local_rabbit");
+			bpSubscribe.setBinder("solace");
 			bpSubscribe.setDestination(signature.getSubscribeTopic());
 			bindingMap.put("input", bpSubscribe);
 		}
-		if (scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.PROCESSOR) == 0
-				|| scsGenProps.getScsType().compareTo(SpringCloudStreamsGeneratorProperties.SOURCE) == 0) {
+		if (signature.getPublishMessageType() != null) {
 			BindingProperties bpPublish = new BindingProperties();
-			bpPublish.setBinder("local_rabbit");
+			bpPublish.setBinder("solace");
 			bpPublish.setDestination(signature.getPublishTopic());
 			bindingMap.put("output", bpPublish);
 		}
 		bsp.setBindings(bindingMap);
 		BinderProperties binderprops = new BinderProperties();
-		binderprops.setType("rabbit");
+		binderprops.setType("solace");
 		Map<String, Object> environment = new HashMap<String, Object>();
-		Map<String, Object> rabbitEnv = new HashMap<String, Object>();
-		environment.put("spring", rabbitEnv);
-		String[] hostSplit = asyncApiData.getHost().split(":");
-		rabbitEnv.put("host", hostSplit[0]);
-		rabbitEnv.put("port", hostSplit[1]);
-		rabbitEnv.put("username", "guest");
-		rabbitEnv.put("password", "guest");
-		rabbitEnv.put("virtual-host", "/");
+		Map<String, Object> solaceEnv = new HashMap<String, Object>();
+		Map<String, Object> javaEnv = new HashMap<String, Object>();
+		environment.put("solace", solaceEnv);
+		solaceEnv.put("java", javaEnv);
+		javaEnv.put("host", asyncApiData.getServers().iterator().next().getUrl());
+		javaEnv.put("clientUsername", scsGenProps.getClientUsername());
+		javaEnv.put("clientPassword", scsGenProps.getClientPassword());
+		javaEnv.put("msgVpn", scsGenProps.getMsgVpn());
+		javaEnv.put("connectRetries", 3);
+		javaEnv.put("connectRetriesPerHost", 0);
+		javaEnv.put("reconnectRetries", 3);
 
 		binderprops.setEnvironment(environment);
 		HashMap<String, BinderProperties> config = new HashMap<String, BinderProperties>();
-		config.put("local_rabbit", binderprops);
+		config.put("solace", binderprops);
 		bsp.setBinders(config);
 
 		ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 		ObjectNode file = (ObjectNode) mapper.createObjectNode().set("spring", mapper.createObjectNode().set("cloud",
 				mapper.createObjectNode().set("stream", mapper.convertValue(bsp, ObjectNode.class))));
 		String output = mapper.writeValueAsString(file);
-		SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(SpringCloudStreamsGenerator.class)
-				.resolve(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsGenProps.getBaseDir()
-						+ "/src/main/resources"));
+		
+		Path path = Paths.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
+		+ File.separator+ "src" + File.separator + "main" + File.separator + "resources");
+		SourceRoot sourceRoot = new SourceRoot(path);
 		writeFile(new File(sourceRoot.getRoot().toString() + File.separator + "application.yml"), output);
 		return output;
 	}
@@ -283,15 +355,15 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 
 	private Signature extractSignature(AsyncApi api) {
 		Signature signature = new Signature();
-		Iterator<Topic> topicIter = api.getTopics().iterator();
+		Iterator<Channel> topicIter = api.getChannel().iterator();
 		while (topicIter.hasNext()) {
-			Topic topic = topicIter.next();
+			Channel topic = topicIter.next();
 			if (topic.getPublish() != null) {
-				signature.setPublishTopic(api.getBaseTopic() + "." + topic.getName());
+				signature.setPublishTopic(topic.getChannel());
 				String className = topic.getPublish().getName();
 				signature.setPublishMessageType(className.substring(0, 1).toUpperCase() + className.substring(1));
 			} else if (topic.getSubscribe() != null) {
-				signature.setSubscribeTopic(api.getBaseTopic() + "." + topic.getName());
+				signature.setSubscribeTopic(topic.getChannel());
 				String className = topic.getSubscribe().getName();
 				signature.setSubscribeMessageType(className.substring(0, 1).toUpperCase() + className.substring(1));
 
@@ -299,21 +371,6 @@ public class SpringCloudStreamsGenerator implements ApplicationEventPublisher {
 		}
 
 		return signature;
-	}
-
-	private boolean validateContract(File asyncApiSchema, File asyncApiInstance) throws Exception {
-		ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-		final JsonNode asyncApiInstanceModel = yamlReader.readValue(asyncApiInstance, JsonNode.class);
-		final JsonSchema schema = JsonSchemaFactory.byDefault().getJsonSchema(JsonLoader.fromFile(asyncApiSchema));
-		ProcessingReport report;
-		report = schema.validate(asyncApiInstanceModel);
-		if (report.isSuccess()) {
-			return true;
-		} else {
-			System.out.println(report);
-			throw new Exception(report.toString());
-		}
-
 	}
 
 	@Override

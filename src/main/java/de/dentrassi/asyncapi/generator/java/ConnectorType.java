@@ -16,6 +16,8 @@
 
 package de.dentrassi.asyncapi.generator.java;
 
+import com.asyncapi.parser.Channel;
+
 import de.dentrassi.asyncapi.MessageReference;
 import de.dentrassi.asyncapi.Topic;
 
@@ -32,12 +34,12 @@ public enum ConnectorType {
         }
 
         @Override
-        public MessageReference getPublish(final Topic topic) {
+        public MessageReference getPublish(final Channel topic) {
             return topic.getPublish();
         }
 
         @Override
-        public MessageReference getSubscribe(final Topic topic) {
+        public MessageReference getSubscribe(final Channel topic) {
             return topic.getSubscribe();
         }
     },
@@ -54,12 +56,12 @@ public enum ConnectorType {
         }
 
         @Override
-        public MessageReference getPublish(final Topic topic) {
+        public MessageReference getPublish(final Channel topic) {
             return topic.getSubscribe(); // swap PUB <-> SUB for server
         }
 
         @Override
-        public MessageReference getSubscribe(final Topic topic) {
+        public MessageReference getSubscribe(final Channel topic) {
             return topic.getPublish(); // swap PUB <-> SUB for server
         }
     };
@@ -68,8 +70,8 @@ public enum ConnectorType {
 
     public abstract String getSimpleTypeName();
 
-    public abstract MessageReference getPublish(Topic topic);
+    public abstract MessageReference getPublish(Channel topic);
 
-    public abstract MessageReference getSubscribe(Topic topic);
+    public abstract MessageReference getSubscribe(Channel topic);
 
 }

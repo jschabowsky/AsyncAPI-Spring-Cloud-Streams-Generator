@@ -52,7 +52,7 @@ public class Validator {
 
     public void validate(final AsyncApi api) {
 
-        final String baseTopic = api.getBaseTopic();
+        final String baseTopic = api.getServers().iterator().next().getBaseChannel();
         if (baseTopic != null && !baseTopic.isEmpty()) {
             if (!baseTopic.matches("^[^/.]")) {
                 reportError("Base topic must match pattern: {0} - but is: {1}", "^[^/.]", baseTopic);

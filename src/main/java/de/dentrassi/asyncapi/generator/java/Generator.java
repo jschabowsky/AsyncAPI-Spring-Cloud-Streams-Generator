@@ -18,7 +18,6 @@ package de.dentrassi.asyncapi.generator.java;
 
 import static de.dentrassi.asyncapi.generator.java.PackageTypeBuilder.asPropertyName;
 import static de.dentrassi.asyncapi.generator.java.PackageTypeBuilder.asTypeName;
-import static de.dentrassi.asyncapi.generator.java.util.JDTHelper.makePublic;
 import static de.dentrassi.asyncapi.generator.java.util.JDTHelper.newStringLiteral;
 import static de.dentrassi.asyncapi.generator.java.util.Names.makeVersion;
 
@@ -58,13 +57,15 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.TypeParameter;
 
+import com.asyncapi.parser.Channel;
+import com.asyncapi.parser.Info;
+
 import de.dentrassi.asyncapi.AsyncApi;
 import de.dentrassi.asyncapi.Message;
 import de.dentrassi.asyncapi.MessageReference;
 import de.dentrassi.asyncapi.Topic;
 import de.dentrassi.asyncapi.generator.java.ServiceDefinitions.VersionedService;
 import de.dentrassi.asyncapi.generator.java.util.JDTHelper;
-import de.dentrassi.asyncapi.meta.Information;
 import de.dentrassi.asyncapi.type.ArrayType;
 import de.dentrassi.asyncapi.type.CoreType;
 import de.dentrassi.asyncapi.type.EnumType;
@@ -256,12 +257,12 @@ public class Generator {
 
             renderDefaultConnectorBuilder(b, connectorType);
 
-            for (final Map.Entry<String, Map<String, List<Topic>>> versionEntry : this.serviceDefinitions.getVersions().entrySet()) {
+            for (final Map.Entry<String, Map<String, List<Channel>>> versionEntry : this.serviceDefinitions.getVersions().entrySet()) {
                 final String version = makeVersion(versionEntry.getKey());
 
                 b.createType(new TypeInformation(version.toUpperCase(), null, null), true, false, vb -> {
 
-                    for (final Map.Entry<String, List<Topic>> serviceEntry : versionEntry.getValue().entrySet()) {
+                    for (final Map.Entry<String, List<Channel>> serviceEntry : versionEntry.getValue().entrySet()) {
 
                         final TypeInformation serviceType = createServiceTypeInformation(serviceEntry);
 
@@ -354,19 +355,19 @@ public class Generator {
 
             // statements
 
-            if (this.api.getHost() != null && !this.api.getHost().isEmpty()) {
+            if (this.api.getServers() != null && !this.api.getServers().isEmpty()) {
                 final MethodInvocation mi = ast.newMethodInvocation();
                 mi.setExpression(ast.newSimpleName("builder"));
                 mi.setName(ast.newSimpleName("host"));
-                mi.arguments().add(newStringLiteral(ast, this.api.getHost()));
+                mi.arguments().add(newStringLiteral(ast, this.api.getServers().iterator().next().getUrl()));
                 body.statements().add(ast.newExpressionStatement(mi));
             }
 
-            if (this.api.getBaseTopic() != null && !this.api.getBaseTopic().isEmpty()) {
+            if (this.api.getServers() != null && !this.api.getServers().isEmpty()) {
                 final MethodInvocation mi = ast.newMethodInvocation();
                 mi.setExpression(ast.newSimpleName("builder"));
                 mi.setName(ast.newSimpleName("baseTopic"));
-                mi.arguments().add(newStringLiteral(ast, this.api.getBaseTopic()));
+                mi.arguments().add(newStringLiteral(ast, this.api.getServers().iterator().next().getBaseChannel()));
                 body.statements().add(ast.newExpressionStatement(mi));
             }
 
@@ -417,17 +418,17 @@ public class Generator {
 
     @SuppressWarnings("unchecked")
     private void renderServices(final ConnectorType connectorType) {
-        for (final Map.Entry<String, Map<String, List<Topic>>> versionEntry : this.serviceDefinitions.getVersions().entrySet()) {
+        for (final Map.Entry<String, Map<String, List<Channel>>> versionEntry : this.serviceDefinitions.getVersions().entrySet()) {
 
             final String packageName = connectorType.getPackageName();
             final String version = makeVersion(versionEntry.getKey());
             final TypeBuilder builder = new PackageTypeBuilder(this.options.getTargetPath(), packageName(packageName, version), this.options.getCharacterSet(), type -> null,
                     this::lookupType);
 
-            for (final Map.Entry<String, List<Topic>> serviceEntry : versionEntry.getValue().entrySet()) {
+            for (final Map.Entry<String, List<Channel>> serviceEntry : versionEntry.getValue().entrySet()) {
                 builder.createType(createServiceTypeInformation(serviceEntry), true, false, b -> {
 
-                    for (final Topic topic : serviceEntry.getValue()) {
+                    for (final Channel topic : serviceEntry.getValue()) {
                         b.createMethod((ast, cu) -> {
 
                             final TopicInformation ti = this.serviceDefinitions.getTopics().get(topic);
@@ -447,7 +448,7 @@ public class Generator {
 
                             final NormalAnnotation an = ast.newNormalAnnotation();
                             an.setTypeName(ast.newName(TYPE_NAME_TOPIC_ANN));
-                            an.values().add(newKeyValueString(ast, "name", topic.getName()));
+                            an.values().add(newKeyValueString(ast, "name", topic.getChannel()));
                             if (topic.getPublish() != null) {
                                 an.values().add(newKeyValueClass(ast, "publish", messageTypeName(topic.getPublish(), this.context)));
                             }
@@ -458,7 +459,7 @@ public class Generator {
 
                             // make public
 
-                            makePublic(md);
+                           // makePublic(md);
 
                             // return
 
@@ -474,12 +475,12 @@ public class Generator {
         }
     }
 
-    public static TypeInformation createServiceTypeInformation(final Map.Entry<String, List<Topic>> serviceEntry) {
+    public static TypeInformation createServiceTypeInformation(final Map.Entry<String, List<Channel>> serviceEntry) {
         return new TypeInformation(asTypeName(serviceEntry.getKey()), null, null);
     }
 
     @SuppressWarnings("unchecked")
-    public static ParameterizedType evalEventMethodType(final AST ast, final Topic topic, final Context context, final ConnectorType connectorType) {
+    public static ParameterizedType evalEventMethodType(final AST ast, final Channel topic, final Context context, final ConnectorType connectorType) {
 
         final MessageReference pubMsg = connectorType.getPublish(topic);
         final MessageReference subMsg = connectorType.getSubscribe(topic);
@@ -593,9 +594,9 @@ public class Generator {
                 .orElseThrow(() -> new IllegalStateException(String.format("Unknown type '%s' referenced", typeName)));
     }
 
-    private void generateMessage(final TypeBuilder builder, final Message message) {
+    private void generateMessage(final TypeBuilder builder, final com.asyncapi.parser.Message message) {
 
-        final TypeInformation ti = new TypeInformation(asTypeName(message.getName()), message.getSummary(), message.getDescription());
+        final TypeInformation ti = new TypeInformation(asTypeName(message.getName()), message.getTitle(), message.getDescription());
 
         //         final String payloadTypeName = PackageTypeBuilder.asTypeName(message.getPayload().getName());
 
@@ -784,8 +785,8 @@ public class Generator {
 
         if (this.options.getBasePackage() != null && !this.options.getBasePackage().isEmpty()) {
             full = Stream.of(this.options.getBasePackage());
-        } else if (this.api.getBaseTopic() != null && !this.api.getBaseTopic().isEmpty()) {
-            full = Stream.of(this.api.getBaseTopic());
+        } else if (this.api.getServers() != null && !this.api.getServers().isEmpty()) {
+            full = Stream.of(this.api.getServers().iterator().next().getBaseChannel());
         } else {
             full = Stream.empty();
         }
@@ -801,7 +802,7 @@ public class Generator {
     private void generateRoot() throws IOException {
 
         PackageTypeBuilder.createCompilationUnit(this.options.getTargetPath(), packageName(), "package-info", this.options.getCharacterSet(), (ast, cu) -> {
-            final Information info = this.api.getInformation();
+            final Info info = this.api.getInfo();
 
             final Javadoc doc = ast.newJavadoc();
 

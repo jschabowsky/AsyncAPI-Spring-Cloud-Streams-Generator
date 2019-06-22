@@ -99,7 +99,7 @@ initializr:
           - versionRange: "[2.0.3.RELEASE,2.0.x.BUILD-SNAPSHOT)"
             version: Finchley.RELEASE
           - versionRange: "2.0.x.BUILD-SNAPSHOT"
-            version: Finchley.BUILD-SNAPSHOT
+            version: Greenwich.SR1
             repositories: spring-snapshots,spring-milestones
       spring-cloud-gcp:
         groupId: org.springframework.cloud
@@ -181,6 +181,14 @@ initializr:
           groupId: org.springframework.cloud
           artifactId: spring-cloud-stream-binder-rabbit
           description: Added By Jonathan Schabowsky
+    - name: Solace-Spring-Cloud-Stream-Binder
+      content:
+        - name: cloud-stream-binder-solace
+          id: cloud-stream-binder-solace
+          groupId: com.solace.spring.cloud
+          artifactId: spring-cloud-starter-stream-solace
+          description: Added By Jonathan Schabowsky
+          version: 1.1.0
     - name: Core
       content:
         - name: DevTools
@@ -755,6 +763,19 @@ initializr:
               description: Messaging with RabbitMQ
             - rel: reference
               href: http://docs.spring.io/spring-boot/docs/{bootVersion}/reference/htmlsingle/#boot-features-amqp
+        - name: Solace
+          id: smf
+          weight: 100
+          description: Solace PubSub+ messaging support using Java API
+          version: 2.1.0
+          groupId: com.solace.spring.boot
+          artifactId: solace-java-spring-boot-autoconfigure
+          starter: false
+          keywords:
+            - messaging
+          links:
+            - rel: reference
+              href: https://github.com/SolaceProducts/solace-java-spring-boot 
         - name: Kafka
           id: kafka
           weight: 100

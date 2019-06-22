@@ -29,7 +29,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.ZonedDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,11 +44,14 @@ import java.util.Set;
 
 import org.yaml.snakeyaml.Yaml;
 
+import com.asyncapi.parser.Channel;
+import com.asyncapi.parser.Info;
+import com.asyncapi.parser.Server;
+
 import de.dentrassi.asyncapi.AsyncApi;
 import de.dentrassi.asyncapi.Message;
 import de.dentrassi.asyncapi.MessageReference;
 import de.dentrassi.asyncapi.Topic;
-import de.dentrassi.asyncapi.meta.Information;
 import de.dentrassi.asyncapi.meta.License;
 import de.dentrassi.asyncapi.type.ArrayType;
 import de.dentrassi.asyncapi.type.CoreType;
@@ -65,7 +68,7 @@ public class YamlParser {
 
     private final Map<String, ?> document;
 
-    private final Map<String, Message> messages = new HashMap<>();
+    private final Map<String, com.asyncapi.parser.Message> messages = new HashMap<>();
 
     public YamlParser(final InputStream in) throws ParserException {
         try {
@@ -92,11 +95,9 @@ public class YamlParser {
 
         final AsyncApi api = new AsyncApi();
 
-        api.setBaseTopic(asOptionalString("baseTopic", this.document).orElse(null));
-        api.setHost(asOptionalString("host", this.document).orElse("localhost"));
-        api.setSchemes(asSet("schemes", this.document));
-        api.setInformation(parseInfo(asMap("info", this.document)));
-        api.setTopics(parseTopics(asMap("topics", this.document)));
+        api.setServers(parseServers(asMap("servers", this.document)));
+        api.setInfo(parseInfo(asMap("info", this.document)));
+        api.setChannel(parseChannels(asMap("channels", this.document)));
 
         final Map<String, ?> components = asMap("components", this.document);
 
@@ -121,12 +122,12 @@ public class YamlParser {
         return result;
     }
 
-    private Set<Message> parseMessages(final Map<String, ?> map) {
+    private Set<com.asyncapi.parser.Message> parseMessages(final Map<String, ?> map) {
         if (map == null || map.isEmpty()) {
             return Collections.emptySet();
         }
 
-        final Set<Message> result = new LinkedHashSet<>();
+        final Set<com.asyncapi.parser.Message> result = new LinkedHashSet<>();
 
         for (final Map.Entry<String, ?> entry : map.entrySet()) {
             final String name = entry.getKey();
@@ -248,7 +249,7 @@ public class YamlParser {
 
         switch (format) {
         case "date-time":
-            return new CoreType(name, ZonedDateTime.class);
+            return new CoreType(name, OffsetDateTime.class);
         default:
             throw new IllegalStateException(String.format("Unknown data format: " + format));
         }
@@ -283,32 +284,51 @@ public class YamlParser {
         type.setDescription(asOptionalString("description", map).orElse(null));
         return type;
     }
-
-    private Set<Topic> parseTopics(final Map<String, ?> topics) {
-        final Set<Topic> result = new HashSet<>();
-
-        for (final Map.Entry<String, ?> entry : topics.entrySet()) {
-            result.add(parseTopic(entry.getKey(), entry.getValue()));
-        }
+    
+    private Set<Server> parseServers(final Map<String, ?> servers)
+    {
+    	final Set<Server> result = new HashSet<>();
+    	
+    	for (final Map.Entry<String, ?> entry : servers.entrySet()) {
+    		if(entry.getKey().compareTo("url")==0)
+    		{
+    		result.add(parseServer(entry.getKey(), entry.getValue()));
+    		}
+    	}
+    	return result;
+    }
+    private Server parseServer(final String key, final Object value) {
+        final Server result = new Server();
+        result.setUrl(value.toString());
 
         return result;
     }
 
-    private Topic parseTopic(final String key, final Object value) {
+    private Set<Channel> parseChannels(final Map<String, ?> channels) {
+        final Set<Channel> result = new HashSet<>();
+
+        for (final Map.Entry<String, ?> entry : channels.entrySet()) {
+            result.add(parseChannel(entry.getKey(), entry.getValue()));
+        }
+
+        return result;
+    }
+   
+
+    private Channel parseChannel(final String key, final Object value) {
         final Map<String, ?> map = asMap(value);
 
-        final Topic result = new Topic();
+        final Channel result = new Channel();
 
-        result.setName(key);
-        result.setPublish(asOptionalMap("publish", map).map(v -> parseMessage("Publish. " + key, v)).orElse(null));
+        result.setChannel(key);
+        result.setPublish(asOptionalMap("publish", map).map(v -> parseMessage("Publish." + key, v)).orElse(null));
         result.setSubscribe(asOptionalMap("subscribe", map).map(v -> parseMessage("Subscribe." + key, v)).orElse(null));
-        result.setDeprecated(asBoolean(map, "deprecated"));
 
         return result;
     }
 
     private MessageReference parseMessage(final String name, final Map<String, ?> map) {
-        final Optional<String> ref = asOptionalString("$ref", map);
+        final Optional<String> ref = asOptionalString("$ref", (Map<String, ?>)map.get("message"));
 
         if (ref.isPresent()) {
 
@@ -322,24 +342,21 @@ public class YamlParser {
         }
     }
 
-    private Message parseExplicitMessage(final String name, final Map<String, ?> map) {
+    private com.asyncapi.parser.Message parseExplicitMessage(final String name, final Map<String, ?> map) {
 
-        final Message message = new Message(name);
-
+        final com.asyncapi.parser.Message message = new com.asyncapi.parser.Message(name);
         message.setDescription(asOptionalString("description", map).orElse(null));
-        message.setSummary(asOptionalString("summary", map).orElse(null));
+        message.setTitle(asOptionalString("title", map).orElse(null));
 
         message.setPayload(parseType("messages", Collections.singletonList(name), "payload", asMap("payload", map)));
-
-        message.setDeprecated(asBoolean(map, "deprecated"));
 
         this.messages.put(name, message);
 
         return message;
     }
 
-    private Information parseInfo(final Map<String, ?> map) {
-        final Information result = new Information();
+    private Info parseInfo(final Map<String, ?> map) {
+        final Info result = new Info();
 
         result.setTitle(asOptionalString("title", map).orElse(null));
         result.setVersion(asString("version", map));
@@ -347,9 +364,6 @@ public class YamlParser {
         result.setTermsOfService(asOptionalString("termsOfService", map)
                 .map(YamlParser::toUri)
                 .orElse(null));
-
-        result.setLicense(asOptionalMap("license", map).map(this::parseLicense).orElse(null));
-
         return result;
     }
 

@@ -49,10 +49,10 @@ public class Version implements Comparable<Version> {
     }
 
     public static Version valueOf(final String version) {
-        if (version == null) {
+        if (version == null || version.compareTo("")==0) {
             return null;
         }
-
+      
         final String[] toks = version.split("\\.");
         final int[] v = new int[toks.length];
 

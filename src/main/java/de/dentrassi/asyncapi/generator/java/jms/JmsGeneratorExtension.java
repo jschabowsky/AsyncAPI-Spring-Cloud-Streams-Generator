@@ -48,6 +48,8 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
+import com.asyncapi.parser.Channel;
+
 import de.dentrassi.asyncapi.AsyncApi;
 import de.dentrassi.asyncapi.MessageReference;
 import de.dentrassi.asyncapi.Topic;
@@ -98,11 +100,11 @@ public class JmsGeneratorExtension implements GeneratorExtension {
 
     @SuppressWarnings("unchecked")
     private void createServiceClasses(final Context context, final ConnectorType connectorType) {
-        for (final Map.Entry<String, Map<String, List<Topic>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
+        for (final Map.Entry<String, Map<String, List<Channel>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
 
             final String version = Names.makeVersion(entry.getKey());
 
-            for (final Map.Entry<String, List<Topic>> serviceEntry : entry.getValue().entrySet()) {
+            for (final Map.Entry<String, List<Channel>> serviceEntry : entry.getValue().entrySet()) {
                 final String serviceName = Names.toCamelCase(serviceEntry.getKey(), false);
                 final String serviceTypeName = makeServiceType(context, connectorType, version, serviceEntry, false);
 
@@ -117,7 +119,7 @@ public class JmsGeneratorExtension implements GeneratorExtension {
 
                     createServiceConstructor(b, implName);
 
-                    for (final Topic topic : serviceEntry.getValue()) {
+                    for (final Channel topic : serviceEntry.getValue()) {
                         final String name = Generator.makeTopicMethodName(context.getServiceDefinitions().getTopics().get(topic));
 
                         b.createMethod((ast, cu) -> {
@@ -145,12 +147,12 @@ public class JmsGeneratorExtension implements GeneratorExtension {
                             if (pubMsg != null && subMsg != null) {
                                 ret.setExpression(
                                         aggregate(ast,
-                                                publisher(ast, topic.getName()),
-                                                subscriber(ast, topic.getName(), Generator.messageTypeName(subMsg, context))));
+                                                publisher(ast, topic.getChannel()),
+                                                subscriber(ast, topic.getChannel(), Generator.messageTypeName(subMsg, context))));
                             } else if (pubMsg != null) {
-                                ret.setExpression(publisher(ast, topic.getName()));
+                                ret.setExpression(publisher(ast, topic.getChannel()));
                             } else if (subMsg != null) {
-                                ret.setExpression(subscriber(ast, topic.getName(), Generator.messageTypeName(subMsg, context)));
+                                ret.setExpression(subscriber(ast, topic.getChannel(), Generator.messageTypeName(subMsg, context)));
                             }
 
                             body.statements().add(ret);
@@ -261,7 +263,7 @@ public class JmsGeneratorExtension implements GeneratorExtension {
     @SuppressWarnings("unchecked")
     private void createVersions(final TypeBuilder builder, final Context context, final ConnectorType connectorType) {
 
-        for (final Map.Entry<String, Map<String, List<Topic>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
+        for (final Map.Entry<String, Map<String, List<Channel>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
 
             final String version = Names.makeVersion(entry.getKey());
             final String versionTypeName = version.toUpperCase();
@@ -299,7 +301,7 @@ public class JmsGeneratorExtension implements GeneratorExtension {
 
                 // create V1 methods
 
-                for (final Map.Entry<String, List<Topic>> serviceEntry : entry.getValue().entrySet()) {
+                for (final Map.Entry<String, List<Channel>> serviceEntry : entry.getValue().entrySet()) {
 
                     final String serviceName = Names.toCamelCase(serviceEntry.getKey(), false);
                     final String serviceInstanceField = version + Names.toCamelCase(serviceName, true);
@@ -439,11 +441,11 @@ public class JmsGeneratorExtension implements GeneratorExtension {
     }
 
     private void createServiceFields(final TypeBuilder builder, final Context context, final ConnectorType connectorType) {
-        for (final Map.Entry<String, Map<String, List<Topic>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
+        for (final Map.Entry<String, Map<String, List<Channel>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
 
             final String version = Names.makeVersion(entry.getKey());
 
-            for (final Map.Entry<String, List<Topic>> serviceEntry : entry.getValue().entrySet()) {
+            for (final Map.Entry<String, List<Channel>> serviceEntry : entry.getValue().entrySet()) {
                 final String serviceName = Names.toCamelCase(serviceEntry.getKey(), false);
                 final String serviceInstanceField = version + Names.toCamelCase(serviceName, true);
                 final String serviceTypeName = makeServiceType(context, connectorType, version, serviceEntry, true);
@@ -489,11 +491,11 @@ public class JmsGeneratorExtension implements GeneratorExtension {
 
             // add service field instances
 
-            for (final Map.Entry<String, Map<String, List<Topic>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
+            for (final Map.Entry<String, Map<String, List<Channel>>> entry : context.getServiceDefinitions().getVersions().entrySet()) {
 
                 final String version = Names.makeVersion(entry.getKey());
 
-                for (final Map.Entry<String, List<Topic>> serviceEntry : entry.getValue().entrySet()) {
+                for (final Map.Entry<String, List<Channel>> serviceEntry : entry.getValue().entrySet()) {
                     final String serviceName = Names.toCamelCase(serviceEntry.getKey(), false);
                     final String serviceInstanceField = version + Names.toCamelCase(serviceName, true);
                     final String serviceTypeName = makeServiceType(context, connectorType, version, serviceEntry, true);
@@ -509,7 +511,7 @@ public class JmsGeneratorExtension implements GeneratorExtension {
         });
     }
 
-    private String makeServiceType(final Context context, final ConnectorType connectorType, final String version, final Map.Entry<String, List<Topic>> serviceEntry,
+    private String makeServiceType(final Context context, final ConnectorType connectorType, final String version, final Map.Entry<String, List<Channel>> serviceEntry,
             final boolean implementation) {
         if (implementation) {
             return context.fullQualifiedName("jms", connectorType.getPackageName(), version) + "." + Names.toCamelCase(serviceEntry.getKey() + "Impl", true);

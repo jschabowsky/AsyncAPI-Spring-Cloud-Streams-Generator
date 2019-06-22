@@ -26,6 +26,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.asyncapi.parser.Channel;
+
 import de.dentrassi.asyncapi.AsyncApi;
 import de.dentrassi.asyncapi.Topic;
 import de.dentrassi.asyncapi.generator.java.util.Version;
@@ -50,21 +52,21 @@ public class ServiceDefinitions {
         }
     }
 
-    private final Map<Topic, TopicInformation> topics;
-    private final Map<String, Map<String, List<Topic>>> versions;
+    private final Map<Channel, TopicInformation> topics;
+    private final Map<String, Map<String, List<Channel>>> versions;
     private final Map<String, VersionedService> latest;
 
-    public ServiceDefinitions(final Map<Topic, TopicInformation> topics, final Map<String, Map<String, List<Topic>>> versions, final Map<String, VersionedService> latest) {
+    public ServiceDefinitions(final Map<Channel, TopicInformation> topics, final Map<String, Map<String, List<Channel>>> versions, final Map<String, VersionedService> latest) {
         this.topics = Collections.unmodifiableMap(topics);
         this.versions = Collections.unmodifiableMap(versions); // FIXME: contained maps are still mutable
         this.latest = Collections.unmodifiableMap(latest);
     }
 
-    public Map<Topic, TopicInformation> getTopics() {
+    public Map<Channel, TopicInformation> getTopics() {
         return this.topics;
     }
 
-    public Map<String, Map<String, List<Topic>>> getVersions() {
+    public Map<String, Map<String, List<Channel>>> getVersions() {
         return this.versions;
     }
 
@@ -74,29 +76,29 @@ public class ServiceDefinitions {
 
     public static ServiceDefinitions build(final AsyncApi api, final boolean validateTopicSyntax) {
 
-        final Map<Topic, TopicInformation> topics = new LinkedHashMap<>();
-        final Map<String, Map<String, List<Topic>>> versions = new HashMap<>();
+        final Map<Channel, TopicInformation> topics = new LinkedHashMap<>();
+        final Map<String, Map<String, List<Channel>>> versions = new HashMap<>();
 
-        for (final Topic topic : api.getTopics()) {
+        for (final Channel channel : api.getChannel()) {
 
             TopicInformation ti;
             try {
-                ti = TopicInformation.fromString(topic.getName());
+                ti = TopicInformation.fromString(channel.getChannel());
             } catch (final IllegalArgumentException e) {
                 if (validateTopicSyntax) {
                     throw e;
                 }
                 // fall back to default
-                ti = new TopicInformation("Topics", "1", "event", new LinkedList<>(asList(topic.getName().split("\\."))), "send", empty());
+                ti = new TopicInformation("Topics", "1", "event", new LinkedList<>(asList(channel.getChannel().split("\\/"))), "send", empty());
             }
 
-            addTopic(versions, ti, topic);
-            topics.put(topic, ti);
+            addTopic(versions, ti, channel);
+            topics.put(channel, ti);
         }
 
         final Map<String, VersionedService> latest = new HashMap<>();
-        for (final Map.Entry<String, Map<String, List<Topic>>> versionEntry : versions.entrySet()) {
-            for (final Map.Entry<String, List<Topic>> serviceEntry : versionEntry.getValue().entrySet()) {
+        for (final Map.Entry<String, Map<String, List<Channel>>> versionEntry : versions.entrySet()) {
+            for (final Map.Entry<String, List<Channel>> serviceEntry : versionEntry.getValue().entrySet()) {
 
                 final TypeInformation serviceType = Generator.createServiceTypeInformation(serviceEntry);
 
@@ -115,15 +117,15 @@ public class ServiceDefinitions {
 
     }
 
-    private static void addTopic(final Map<String, Map<String, List<Topic>>> versions, final TopicInformation ti, final Topic topic) {
+    private static void addTopic(final Map<String, Map<String, List<Channel>>> versions, final TopicInformation ti, final Channel topic) {
 
-        Map<String, List<Topic>> version = versions.get(ti.getVersion());
+        Map<String, List<Channel>> version = versions.get(ti.getVersion());
         if (version == null) {
             version = new HashMap<>();
             versions.put(ti.getVersion(), version);
         }
 
-        List<Topic> service = version.get(ti.getService());
+        List<Channel> service = version.get(ti.getService());
         if (service == null) {
             service = new LinkedList<>();
             version.put(ti.getService(), service);
