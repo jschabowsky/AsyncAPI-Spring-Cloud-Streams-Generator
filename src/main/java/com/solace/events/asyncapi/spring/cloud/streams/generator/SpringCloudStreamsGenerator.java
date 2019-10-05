@@ -11,7 +11,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +35,7 @@ import org.springframework.cloud.stream.messaging.Processor;
 import org.springframework.cloud.stream.messaging.Sink;
 import org.springframework.cloud.stream.messaging.Source;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -51,7 +56,6 @@ import com.github.javaparser.ast.comments.LineComment;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.SourceRoot;
 
 import de.dentrassi.asyncapi.AsyncApi;
@@ -67,6 +71,7 @@ import io.spring.initializr.metadata.InitializrMetadata;
 import io.spring.initializr.metadata.InitializrMetadataBuilder;
 import io.spring.initializr.metadata.InitializrProperties;
 import io.spring.initializr.metadata.SimpleInitializrMetadataProvider;
+import reactor.core.publisher.Flux;
 
 @SpringBootApplication
 @EnableConfigurationProperties(InitializrProperties.class)
@@ -82,7 +87,7 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 
 	public static void main(String[] args) {
 		SpringApplication.run(SpringCloudStreamsGenerator.class, args);
-		
+
 	}
 
 	@Autowired
@@ -94,50 +99,48 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 	@Autowired
 	private SCSProjectRequest scsProjectRequest;
 
-	public void run(ApplicationArguments  args) throws Exception, IOException, ProcessingException, ParserException {
-		
-		if(!args.containsOption("p") || !args.containsOption("cu") || !args.containsOption("cp") || !args.containsOption("mvpn") || args.getNonOptionArgs().size()!=1)
-		{
+	public void run(ApplicationArguments args) throws Exception, IOException, ProcessingException, ParserException {
+
+		if (!args.containsOption("p") || !args.containsOption("cu") || !args.containsOption("cp")
+				|| !args.containsOption("mvpn") || args.getNonOptionArgs().size() != 1) {
 			System.out.println("USAGE: ");
-			System.out.println("--p=<package> --cu=<client-username> --cp=<client-password> --mvpn=<message-vpn> <asyncapi-file-path>");
+			System.out.println(
+					"--p=<package> --cu=<client-username> --cp=<client-password> --mvpn=<message-vpn> <asyncapi-file-path>");
 			System.exit(-1);
 		}
-		
-		if(args.containsOption("p"))
-		{
+
+		if (args.containsOption("p")) {
 			scsProjectRequest.setPackageName(args.getOptionValues("p").get(0));
 		}
-		if(args.containsOption("sbv"))
-		{
+		if (args.containsOption("sbv")) {
 			scsProjectRequest.setBootVersion(args.getOptionValues("sbv").get(0));
 		}
-		if(args.containsOption("jv"))
-		{
+		if (args.containsOption("jv")) {
 			scsProjectRequest.setJavaVersion(args.getOptionValues("jv").get(0));
 		}
-		if(args.containsOption("java"))
-		{
+		if (args.containsOption("java")) {
 			scsProjectRequest.setLanguage("java");
 		}
-		if(args.containsOption("jar"))
-		{
+		if (args.containsOption("jar")) {
 			scsProjectRequest.setPackaging("jar");
 		}
-		if(args.containsOption("mvn"))
-		{
+		if (args.containsOption("mvn")) {
 			scsProjectRequest.setType("maven-build");
 		}
-		if(args.containsOption("cu"))
-		{
-			scsGenProps.setClientUsername(args.getOptionValues("cu").get(0));;
+		if (args.containsOption("cu")) {
+			scsGenProps.setClientUsername(args.getOptionValues("cu").get(0));
+			;
 		}
-		if(args.containsOption("cp"))
-		{
-			scsGenProps.setClientPassword(args.getOptionValues("cp").get(0));;
+		if (args.containsOption("cp")) {
+			scsGenProps.setClientPassword(args.getOptionValues("cp").get(0));
+			;
 		}
-		if(args.containsOption("mvpn"))
-		{
-			scsGenProps.setMsgVpn(args.getOptionValues("mvpn").get(0));;
+		if (args.containsOption("mvpn")) {
+			scsGenProps.setMsgVpn(args.getOptionValues("mvpn").get(0));
+			;
+		}
+		if (args.containsOption("reactive")) {
+			scsGenProps.setReactive(true);
 		}
 
 		// Take AsyncAPI Contract and parse into a signature object
@@ -146,8 +149,7 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 		this.signature = extractSignature(asyncApiData);
 
 		// Generate Spring Project though Spring Initializer based on properties
-		if (scsProjectRequest.getBaseDir() == null)
-		{
+		if (scsProjectRequest.getBaseDir() == null) {
 			scsProjectRequest.setBaseDir(asyncApiData.getInfo().getTitle());
 		}
 		if (scsProjectRequest.getName() == null) {
@@ -173,14 +175,14 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 
 		// Generate Spring Cloud Streams Java Object with Annotations and
 		// Methods
-		String source = generateSourceCode(out, projectRequest);
+		String source = generateSourceCode(out, projectRequest, scsGenProps);
 		System.out.println(source);
 
 		// Generate Application.Yaml file which links the SCS Bindings to the
 		// Solace Binder
 		String yamlConfig = generateApplicationYaml(out, projectRequest);
 		System.out.println(yamlConfig);
-		
+
 		System.out.println("Your Project Has Been Generated at: " + out);
 
 	}
@@ -203,9 +205,6 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 	private File generateInitilizrProject(ProjectRequest projectRequest) throws IOException {
 		// Initial Spring Initializr Setup
 
-		
-		
-
 		initializrProps = load(new ClassPathResource("spring-bom.yml"));
 		InitializrMetadata metadata = InitializrMetadataBuilder.fromInitializrProperties(initializrProps).build();
 		List<String> dependencies = new ArrayList<String>();
@@ -220,16 +219,17 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 		projectGenerator.setRequestResolver(new ProjectRequestResolver(new ArrayList<>()));
 		projectGenerator.setEventPublisher(this);
 		File out = projectGenerator.generateProjectStructure(projectRequest);
-		
 
 		return out;
 	}
 
-	private String generateSourceCode(File initilizrOutputDirectory, ProjectRequest projectRequest) throws Exception {
+	private String generateSourceCode(File initilizrOutputDirectory, ProjectRequest projectRequest,
+			SpringCloudStreamsGeneratorProperties scsGenProps) throws Exception {
 		// Add required source code based on contract
-    
-		Path path = Paths.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
-						+ File.separator+ "src" + File.separator + "main" + File.separator + "java");
+
+		Path path = Paths
+				.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
+						+ File.separator + "src" + File.separator + "main" + File.separator + "java");
 		SourceRoot sourceRoot = new SourceRoot(path);
 		CompilationUnit cu = sourceRoot.parse(projectRequest.getPackageName(),
 				projectRequest.getName() + "Application.java");
@@ -237,50 +237,91 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 		cu.addImport(scsProjectRequest.getPackageName() + ".messages.*");
 		ClassOrInterfaceDeclaration dec = cu.getClassByName(projectRequest.getApplicationName()).get();
 		MethodDeclaration method = null;
-		if (signature.getPublishMessageType() != null && signature.getSubscribeMessageType() != null) {
-			method = dec.addMethod("handle" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
-			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
-					new ClassExpr(JavaParser.parseClassOrInterfaceType("Processor")));
-			dec.tryAddImportToParentCompilationUnit(Processor.class);
 
-			for (Message m : asyncApiData.getMessages()) {
-				if (m.getName().compareTo(signature.getPublishMessageType()) == 0) {
-					method.setType(m.getPayload().getName());
-					break;
+		if (scsGenProps.isReactive()) {
+			dec.tryAddImportToParentCompilationUnit(Flux.class);
+			if (signature.getPublishMessageType() != null && signature.getSubscribeMessageType() != null) {
+				method = dec.addMethod("handle" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
+				method.addMarkerAnnotation(Bean.class);
+				dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
+						new ClassExpr(JavaParser.parseClassOrInterfaceType("Processor")));
+				dec.tryAddImportToParentCompilationUnit(Function.class);
+
+				String publishType = null;
+				String subscribeType = null;
+				for (Message m : asyncApiData.getMessages()) {
+					if (m.getName().compareTo(signature.getPublishMessageType()) == 0) {
+						publishType = m.getPayload().getName();
+						break;
+					}
 				}
-			}
-			for (Message m : asyncApiData.getMessages()) {
-				if (m.getName().compareTo(signature.getSubscribeMessageType()) == 0) {
-					method.addParameter(m.getPayload().getName(), "a" + m.getPayload().getName());
-					break;
+				for (Message m : asyncApiData.getMessages()) {
+					if (m.getName().compareTo(signature.getSubscribeMessageType()) == 0) {
+						subscribeType = m.getPayload().getName();
+						method.setType("Function<Flux<" + subscribeType + ">, Flux<" + publishType + ">>");
+						break;
+					}
 				}
+				BlockStmt body =  dec.getMethodsByName("main").get(0).getBody().get();
+			
+
+			} else if (signature.getPublishMessageType() != null) {
+				method = dec.addMethod("send" + signature.getPublishMessageType(), Modifier.PUBLIC);
+				method.addMarkerAnnotation(Bean.class);
+				dec.tryAddImportToParentCompilationUnit(Supplier.class);
+				method.setType("Supplier<Flux<" + signature.getPublishMessageType() + ">>");
+			} else if (signature.getSubscribeMessageType() != null) {
+				method = dec.addMethod("consume" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
+				method.addMarkerAnnotation(Bean.class);
+				dec.tryAddImportToParentCompilationUnit(Consumer.class);
+				method.setType("Consumer<Flux<" + signature.getSubscribeMessageType() + ">>");
 			}
+		} else {
+			if (signature.getPublishMessageType() != null && signature.getSubscribeMessageType() != null) {
+				method = dec.addMethod("handle" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
+				dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
+						new ClassExpr(JavaParser.parseClassOrInterfaceType("Processor")));
+				dec.tryAddImportToParentCompilationUnit(Processor.class);
 
-			method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.StreamListener.class,
-					new TypeExpr(JavaParser.parseType("Processor.INPUT")));
-			method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.Output.class,
-					new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
+				for (Message m : asyncApiData.getMessages()) {
+					if (m.getName().compareTo(signature.getPublishMessageType()) == 0) {
+						method.setType(m.getPayload().getName());
+						break;
+					}
+				}
+				for (Message m : asyncApiData.getMessages()) {
+					if (m.getName().compareTo(signature.getSubscribeMessageType()) == 0) {
+						method.addParameter(m.getPayload().getName(), "a" + m.getPayload().getName());
+						break;
+					}
+				}
 
-		} else if (signature.getPublishMessageType() != null) {
-			method = dec.addMethod("send" + signature.getPublishMessageType(), Modifier.PUBLIC);
-			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
-					new ClassExpr(JavaParser.parseClassOrInterfaceType("Source")));
-			dec.tryAddImportToParentCompilationUnit(Source.class);
-			method.setType(signature.getPublishMessageType());
-			method.addSingleMemberAnnotation(InboundChannelAdapter.class,
-					new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
-			dec.tryAddImportToParentCompilationUnit(Processor.class);
-		} else if (signature.getSubscribeMessageType() != null) {
-			method = dec.addMethod("consume" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
-			dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
-					new ClassExpr(JavaParser.parseClassOrInterfaceType("Sink")));
-			dec.tryAddImportToParentCompilationUnit(Sink.class);
-			method.addParameter(signature.getSubscribeMessageType(),
-					"a" + signature.getSubscribeMessageType() + "Message");
-			method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.StreamListener.class,
-					new TypeExpr(JavaParser.parseType("Processor.INPUT")));
-			dec.tryAddImportToParentCompilationUnit(Processor.class);
+				method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.StreamListener.class,
+						new TypeExpr(JavaParser.parseType("Processor.INPUT")));
+				method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.Output.class,
+						new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
 
+			} else if (signature.getPublishMessageType() != null) {
+				method = dec.addMethod("send" + signature.getPublishMessageType(), Modifier.PUBLIC);
+				dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
+						new ClassExpr(JavaParser.parseClassOrInterfaceType("Source")));
+				dec.tryAddImportToParentCompilationUnit(Source.class);
+				method.setType(signature.getPublishMessageType());
+				method.addSingleMemberAnnotation(InboundChannelAdapter.class,
+						new TypeExpr(JavaParser.parseType("Processor.OUTPUT")));
+				dec.tryAddImportToParentCompilationUnit(Processor.class);
+			} else if (signature.getSubscribeMessageType() != null) {
+				method = dec.addMethod("consume" + signature.getSubscribeMessageType(), Modifier.PUBLIC);
+				dec.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.EnableBinding.class,
+						new ClassExpr(JavaParser.parseClassOrInterfaceType("Sink")));
+				dec.tryAddImportToParentCompilationUnit(Sink.class);
+				method.addParameter(signature.getSubscribeMessageType(),
+						"a" + signature.getSubscribeMessageType() + "Message");
+				method.addSingleMemberAnnotation(org.springframework.cloud.stream.annotation.StreamListener.class,
+						new TypeExpr(JavaParser.parseType("Processor.INPUT")));
+				dec.tryAddImportToParentCompilationUnit(Processor.class);
+
+			}
 		}
 
 		BlockStmt body = method.createBody();
@@ -332,9 +373,10 @@ public class SpringCloudStreamsGenerator implements ApplicationRunner, Applicati
 		ObjectNode file = (ObjectNode) mapper.createObjectNode().set("spring", mapper.createObjectNode().set("cloud",
 				mapper.createObjectNode().set("stream", mapper.convertValue(bsp, ObjectNode.class))));
 		String output = mapper.writeValueAsString(file);
-		
-		Path path = Paths.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
-		+ File.separator+ "src" + File.separator + "main" + File.separator + "resources");
+
+		Path path = Paths
+				.get(initilizrOutputDirectory.getAbsolutePath() + File.separator + scsProjectRequest.getBaseDir()
+						+ File.separator + "src" + File.separator + "main" + File.separator + "resources");
 		SourceRoot sourceRoot = new SourceRoot(path);
 		writeFile(new File(sourceRoot.getRoot().toString() + File.separator + "application.yml"), output);
 		return output;
