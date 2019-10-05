@@ -19,6 +19,8 @@ public class SpringCloudStreamsGeneratorProperties {
 	@NotBlank
 	private String msgVpn="default";
 	
+	private boolean reactive=false; 
+	
 	public String getMsgVpn() {
 		return msgVpn;
 	}
@@ -36,5 +38,11 @@ public class SpringCloudStreamsGeneratorProperties {
 	}
 	public void setClientPassword(String clientPassword) {
 		this.clientPassword = clientPassword;
+	}
+	public boolean isReactive() {
+		return reactive;
+	}
+	public void setReactive(boolean reactive) {
+		this.reactive = reactive;
 	}	
 }
